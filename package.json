@@ -1,0 +1,21 @@
+{
+  "name": "pocketbase-imba",
+  "version": "0.0.1",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HeapVoid/pocketbase-imba.git"
+  },
+  "main": "pocketbase.imba",
+  "module": "pocketbase.imba",
+  "browser": "pocketbase.imba",
+  "description": "A lightweight wrapper around pocketbase JS client.",
+  "keywords": ["imba", "db", "pocketbase"],
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "pocketbase.imba"
+  ],
+  "dependencies": {
+    "pocketbase": "latest"
+  }
+}
