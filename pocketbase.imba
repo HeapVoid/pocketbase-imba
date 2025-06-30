@@ -18,23 +18,26 @@ export class Pocketbase
 		catch error
 			onerror('internal_db_error', error) if onerror isa Function
 			return false
-		
-	def read collection, query = {}
+	
+	def view collection, filter, query = {}
+		try
+			# id is passed as a filter
+			if !filter.includes(' ')
+				return await pb.collection(collection).getOne(filter, query)
+			# get a first item for a passed filter
+			else
+				return await pb.collection(collection).getFirstListItem(filter, query)
+		catch error
+			onerror('internal_db_error', error) if onerror isa Function
+			return false
+
+	def list collection, query = {}
 		query.skipTotal = true if !Object.keys(query).includes('skipTotal')
 		try
-			if query.id
-				const id = query.id
-				delete query.id
-				return await pb.collection(collection).getOne(id, query)
-			elif query.limit
+			if query.limit
 				const limit = query.limit
 				delete query.limit
-				if limit == 1
-					const filter = query.filter
-					delete query.filter
-					return await pb.collection(collection).getFirstListItem(filter, query)
-				else
-					return await pb.collection(collection).getList(1, limit, query)
+				return await pb.collection(collection).getList(1, limit, query)
 			elif query.page
 				const page = query.page
 				const size = query.size || 20
