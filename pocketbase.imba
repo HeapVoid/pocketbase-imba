@@ -19,12 +19,29 @@ export class Pocketbase
 			onerror('internal_db_error', error) if onerror isa Function
 			return false
 		
-	def read collection, query = {}, id = '', nototal = true
+	def read collection, query = {}
+		query.skipTotal = true if !Object.keys(query).includes('skipTotal')
 		try
-			if id
+			if query.id
+				const id = query.id
+				delete query.id
 				return await pb.collection(collection).getOne(id, query)
+			elif query.limit
+				const limit = query.limit
+				delete query.limit
+				if limit == 1
+					const filter = query.filter
+					delete query.filter
+					return await pb.collection(collection).getFirstListItem(filter, query)
+				else
+					return await pb.collection(collection).getList(1, limit, query)
+			elif query.page
+				const page = query.page
+				const size = query.size || 20
+				delete query.page
+				delete query.size
+				return await pb.collection(collection).getList(page, size, query)
 			else
-				query.skipTotal = true if nototal
 				return await pb.collection(collection).getFullList(query)
 		catch error
 			onerror('internal_db_error', error) if onerror isa Function
@@ -43,11 +60,9 @@ export class Pocketbase
 	get realtime
 		return
 			onconnection: do(callback)
-				if callback isa Function
-					pb.realtime.onDisconnect = do(event)
-						callback('disconnect', event)
-					pb.realtime.subscribe 'PB_CONNECT', do(event)
-						callback('connect', event)
+				return if !(callback isa Function)
+				pb.realtime.onDisconnect = do(event) callback('disconnect', event)
+				pb.realtime.subscribe 'PB_CONNECT', do(event) callback('connect', event)
 
 			subscribe: do(collection, record, callback)
 				pb.collection(collection).subscribe(record, do(e) callback(e.action, e.record))	
