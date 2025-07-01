@@ -4,22 +4,25 @@ export class Pocketbase
 	pb
 	onerror
 	onauth
+	options = {
+		otp: 6
+	}
 	
-	def constructor url
+	def constructor url\string
 		pb = new PocketBase(url)
 		auth.refresh(false)
 
 	# ------------------------------------
 	# Database methods
 	# ------------------------------------
-	def create collection, record
+	def create collection\string, record\object
 		try
 			return await pb.collection(collection).create(record)
 		catch error
 			onerror('internal_db_error', error) if onerror isa Function
 			return false
 	
-	def view collection, filter, query = {}
+	def view collection\string, filter\string, query = {}
 		try
 			# id is passed as a filter
 			if !filter.includes(' ')
@@ -31,7 +34,7 @@ export class Pocketbase
 			onerror('internal_db_error', error) if onerror isa Function
 			return false
 
-	def list collection, query = {}
+	def list collection\string, query = {}
 		query.skipTotal = true if !Object.keys(query).includes('skipTotal')
 		try
 			if query.limit
@@ -50,7 +53,7 @@ export class Pocketbase
 			onerror('internal_db_error', error) if onerror isa Function
 			return false
 			
-	def update collection, id, patch
+	def update collection\string, id\string, patch\object
 		try
 			return await pb.collection(collection).update(id, patch)
 		catch error
@@ -62,15 +65,21 @@ export class Pocketbase
 	# ------------------------------------
 	get realtime
 		return
-			onconnection: do(callback)
+			onconnect: do(callback\Function)
 				return if !(callback isa Function)
-				pb.realtime.onDisconnect = do(event) callback('disconnect', event)
-				pb.realtime.subscribe 'PB_CONNECT', do(event) callback('connect', event)
-
-			subscribe: do(collection, record, callback)
-				pb.collection(collection).subscribe(record, do(e) callback(e.action, e.record))	
+				pb.realtime.subscribe 'PB_CONNECT', do(event) callback(event)
+			ondisconnect: do(callback\Function)
+				return if !(callback isa Function)
+				pb.realtime.onDisconnect = do(event) callback(event)
+				
+			subscribe: do(collection\string, record\string, callback\Function, oninitfail\Function = undefined, retries = 0)
+				try
+					await pb.collection(collection).subscribe(record, do(e) callback(e.record, e.action))	
+				catch error
+					oninitfail(retries,error) if oninitfail isa Function
+					setTimeout(&, 1000) do realtime.subscribe(collection, record, callback, oninitfail, retries + 1)
 			
-			unsubscribe: do(collection, record = undefined)
+			unsubscribe: do(collection\string, record = undefined)
 				if record != undefined
 					pb.collection(collection).unsubscribe(record)
 				else
@@ -84,9 +93,9 @@ export class Pocketbase
 	
 	get auth
 		return 
-			verify: do(email) 
+			verify: do(email\string) 
 				return new RegExp(/^[^\s@]+@[^\s@]+\.[^\s@]+$/).test(email)
-			otp: do(email)
+			otp: do(email\string)
 				if !auth.verify(email)
 					onerror('code_send_error', undefined) if onerror isa Function
 					return undefined
@@ -97,7 +106,7 @@ export class Pocketbase
 					return undefined
 			
 			login: do(otp, code)
-				if !otp..otpId or !code or code.length != 6
+				if !otp..otpId or !code or code.length != options.otp
 					onerror('code_wrong') if onerror isa Function
 					return undefined
 				try
