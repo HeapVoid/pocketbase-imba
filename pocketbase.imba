@@ -4,25 +4,36 @@ export class Pocketbase
 	pb
 	onerror
 	onauth
+	oninit
 	options = {
 		otp: 6
 	}
-	
+		
 	def constructor url\string
 		pb = new PocketBase(url)
-		auth.refresh(false)
+
+	def init
+		await pb.authStore.clear! if user and !pb.authStore.isValid
+		auth.refresh!
+		oninit! if oninit isa Function
+
+	def notify code, details = undefined
+		if onerror isa Function
+			onerror(code, details)
+		else
+			console.error "Pocketbase error:", code, details
 
 	# ------------------------------------
 	# Database methods
 	# ------------------------------------
-	def create collection\string, record\object
+	def create collection\string, record\object, ecode = 'internal_db_error'
 		try
 			return await pb.collection(collection).create(record)
 		catch error
-			onerror('internal_db_error', error) if onerror isa Function
+			notify(ecode, error)
 			return false
 	
-	def view collection\string, filter\string, query = {}
+	def view collection\string, filter\string, query = {}, ecode = 'internal_db_error'
 		try
 			# id is passed as a filter
 			if !filter.includes(' ')
@@ -31,10 +42,10 @@ export class Pocketbase
 			else
 				return await pb.collection(collection).getFirstListItem(filter, query)
 		catch error
-			onerror('internal_db_error', error) if onerror isa Function
+			notify(ecode, error)
 			return false
 
-	def list collection\string, query = {}
+	def list collection\string, query = {}, ecode = 'internal_db_error'
 		query.skipTotal = true if !Object.keys(query).includes('skipTotal')
 		try
 			if query.limit
@@ -50,14 +61,14 @@ export class Pocketbase
 			else
 				return await pb.collection(collection).getFullList(query)
 		catch error
-			onerror('internal_db_error', error) if onerror isa Function
+			notify(ecode, error)
 			return false
 			
-	def update collection\string, id\string, patch\object
+	def update collection\string, id\string, patch\object, ecode = 'internal_db_error'
 		try
 			return await pb.collection(collection).update(id, patch)
 		catch error
-			onerror('internal_db_error', error) if onerror isa Function
+			notify(ecode, error)
 			return false
 
 	# ------------------------------------
@@ -97,40 +108,34 @@ export class Pocketbase
 				return new RegExp(/^[^\s@]+@[^\s@]+\.[^\s@]+$/).test(email)
 			otp: do(email\string)
 				if !auth.verify(email)
-					onerror('code_send_error', undefined) if onerror isa Function
+					notify('code_send_error')
 					return undefined
 				try
 					return await pb.collection('users').requestOTP(email)
 				catch error
-					onerror('code_send_error', error) if onerror isa Function
+					notify('code_send_error', error)
 					return undefined
 			
 			login: do(otp, code)
 				if !otp..otpId or !code or code.length != options.otp
-					onerror('code_wrong') if onerror isa Function
+					notify('code_wrong')
 					return undefined
 				try
 					await pb.collection('users').authWithOTP(otp..otpId, code)
 					onauth! if onauth isa Function
 					return true
 				catch error
-					onerror('code_wrong', error) if onerror isa Function
+					notify('code_wrong', error)
 					return undefined
 			
-			logout: do(silent = false)
+			logout: do
 				await pb.authStore.clear!
-				onauth! if onauth isa Function and !silent
+				onauth! if onauth isa Function
 				
-			refresh: do(silent = true)
-				if !user
-					onauth! if onauth isa Function and !silent
-					return
-				if user and !pb.authStore.isValid
-					auth.logout(silent)
-					return 
+			refresh: do
+				return if !user or !pb.authStore.isValid
 				try
 					await pb.collection("users").authRefresh!
-					onauth! if onauth isa Function and silent
 				catch error
-					onerror('internal_db_error', error) if onerror isa Function
+					notify('internal_db_error', error)
 			
