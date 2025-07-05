@@ -8,17 +8,15 @@ export class Pocketbase
 	options = {
 		otp: 6
 	}
+	silent = false
 		
 	def constructor url\string
 		pb = new PocketBase(url)
-
-	def init
-		await pb.authStore.clear! if user and !pb.authStore.isValid
 		auth.refresh!
-		oninit! if oninit isa Function
 
 	def notify code, details = undefined
-		if onerror isa Function
+		return if silent
+		if onerror isa Function and !silent
 			onerror(code, details)
 		else
 			console.error "Pocketbase error:", code, details
@@ -35,12 +33,12 @@ export class Pocketbase
 	
 	def view collection\string, filter\string, query = {}, ecode = 'internal_db_error'
 		try
-			# id is passed as a filter
-			if !filter.includes(' ')
-				return await pb.collection(collection).getOne(filter, query)
 			# get a first item for a passed filter
-			else
+			if filter.includes(' ')
 				return await pb.collection(collection).getFirstListItem(filter, query)
+			# get an item by id which is passed as a filter
+			else
+				return await pb.collection(collection).getOne(filter, query)
 		catch error
 			notify(ecode, error)
 			return false
@@ -100,7 +98,9 @@ export class Pocketbase
 	# Authentication methods
 	# ------------------------------------			
 	get user
-		pb.authStore.model
+		return pb.authStore.model if pb.authStore.model and pb.authStore.isValid
+		pb.authStore.clear! if pb.authStore.model and !pb.authStore.isValid
+		return undefined
 	
 	get auth
 		return 
@@ -133,9 +133,6 @@ export class Pocketbase
 				onauth! if onauth isa Function
 				
 			refresh: do
-				return if !user or !pb.authStore.isValid
-				try
-					await pb.collection("users").authRefresh!
-				catch error
-					notify('internal_db_error', error)
+				return if !user
+				try await pb.collection("users").authRefresh!
 			
