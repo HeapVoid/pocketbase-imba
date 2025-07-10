@@ -1,5 +1,7 @@
 import PocketBase from 'pocketbase'
 
+export const timeout = do(ms) return new Promise(do(resolve) setTimeout(resolve, ms))
+
 export class Pocketbase
 	pb
 	onerror
@@ -74,25 +76,42 @@ export class Pocketbase
 	# ------------------------------------
 	get realtime
 		return
-			onconnect: do(callback\Function)
-				return if !(callback isa Function)
-				pb.realtime.subscribe 'PB_CONNECT', do(event) callback(event)
-			ondisconnect: do(callback\Function)
-				return if !(callback isa Function)
-				pb.realtime.onDisconnect = do(event) callback(event)
-				
-			subscribe: do(collection\string, record\string, callback\Function, oninitfail\Function = undefined, retries = 0)
+			connect: do(onconnect\Function = undefined, ondisconnect\Function = undefined, retries = 0)
+				pb.realtime.unsubscribe 'PB_CONNECT'
+				pb.realtime.onDisconnect = undefined
 				try
-					await pb.collection(collection).subscribe(record, do(e) callback(e.record, e.action))	
+					await pb.realtime.subscribe 'PB_CONNECT', do(event) onconnect(event) if onconnect isa Function
+					pb.realtime.onDisconnect = do(event) 
+						return if !(ondisconnect isa Function)
+						await timeout(10)
+						ondisconnect(event)
 				catch error
-					oninitfail(retries,error) if oninitfail isa Function
-					setTimeout(&, 1000) do realtime.subscribe(collection, record, callback, oninitfail, retries + 1)
-			
-			unsubscribe: do(collection\string, record = undefined)
+					ondisconnect(error) if ondisconnect isa Function and !retries
+					setTimeout(&, 1000) do realtime.connect(onconnect, ondisconnect, retries + 1)
+					
+			subscribe: 
+				one: do(collection\string, record\string, callback\Function, oninitfail\Function = undefined, retries = 0)
+					try
+						const rec = await pb.collection(collection).getOne(record)
+						callback(rec, 'initial')
+						await pb.collection(collection).subscribe(record, do(e) callback(e.record, e.action))
+					catch error
+						oninitfail(retries,error) if oninitfail isa Function
+						setTimeout(&, 1000) do realtime.subscribe.one(collection, record, callback, oninitfail, retries + 1)
+				all: do(collection\string, callback\Function, oninitfail\Function = undefined, retries = 0)
+					try
+						await pb.collection(collection).subscribe('*', do(e) callback(e.record, e.action))
+					catch error
+						oninitfail(retries,error) if oninitfail isa Function
+						setTimeout(&, 1000) do realtime.subscribe.all(collection, callback, oninitfail, retries + 1)
+
+			unsubscribe: do(collection\string = undefined, record = undefined)
 				if record != undefined
 					pb.collection(collection).unsubscribe(record)
-				else
+				elif collection != undefined
 					pb.collection(collection).unsubscribe!
+				else
+					pb.realtime.unsubscribe!
 		
 	# ------------------------------------
 	# Authentication methods
