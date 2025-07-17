@@ -90,6 +90,18 @@ export class Pocketbase
 					ondisconnect(error) if ondisconnect isa Function and !retries
 					setTimeout(&, 1000) do realtime.connect(onconnect, ondisconnect, retries + 1)
 					
+			watch: 
+				one: do(collection\string, record\string, callback\Function, onfail\Function = undefined)
+					try
+						await pb.collection(collection).subscribe(record, do(e) callback(e.record, e.action))
+					catch error
+						onfail(error) if onfail isa Function
+				all: do(collection\string, callback\Function, onfail\Function = undefined)
+					try
+						await pb.collection(collection).subscribe('*', do(e) callback(e.record, e.action))
+					catch error
+						onfail(error) if onfail isa Function
+
 			subscribe: 
 				one: do(collection\string, record\string, callback\Function, oninitfail\Function = undefined, retries = 0)
 					try
