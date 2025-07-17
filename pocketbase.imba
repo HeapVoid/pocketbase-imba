@@ -35,6 +35,7 @@ export class Pocketbase
 	
 	def view collection\string, filter\string, query = {}, ecode = 'internal_db_error'
 		try
+			query.skipTotal = true if !Object.keys(query).includes('skipTotal')
 			# get a first item for a passed filter
 			if filter.includes(' ')
 				return await pb.collection(collection).getFirstListItem(filter, query)
