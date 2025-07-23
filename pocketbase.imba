@@ -72,6 +72,20 @@ export class Pocketbase
 			notify(ecode, error)
 			return false
 
+	def post route\string, query\object = {}, ecode = 'internal_db_error'
+		try
+			return await pb.send(route, {method: 'POST', body: query})
+		catch error
+			notify(ecode, error)
+			return false
+
+	def get route\string, query\object = {}, ecode = 'internal_db_error'
+		try
+			return await pb.send(route, {method: 'GET', query})
+		catch error
+			notify(ecode, error)
+			return false
+
 	# ------------------------------------
 	# Realtime methods
 	# ------------------------------------
