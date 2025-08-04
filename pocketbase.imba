@@ -26,14 +26,14 @@ export class Pocketbase
 	# ------------------------------------
 	# Database methods
 	# ------------------------------------
-	def create collection\string, record\object, ecode = 'internal_db_error'
+	def create collection\string, record\object, ecode = 'pocketbase-error'
 		try
 			return await pb.collection(collection).create(record)
 		catch error
 			notify(ecode, error)
 			return false
 	
-	def view collection\string, filter\string, query = {}, ecode = 'internal_db_error'
+	def view collection\string, filter\string, query = {}, ecode = 'pocketbase-error'
 		try
 			query.skipTotal = true if !Object.keys(query).includes('skipTotal')
 			# get a first item for a passed filter
@@ -46,7 +46,7 @@ export class Pocketbase
 			notify(ecode, error)
 			return false
 
-	def list collection\string, query = {}, ecode = 'internal_db_error'
+	def list collection\string, query = {}, ecode = 'pocketbase-error'
 		query.skipTotal = true if !Object.keys(query).includes('skipTotal')
 		try
 			if query.limit
@@ -65,21 +65,21 @@ export class Pocketbase
 			notify(ecode, error)
 			return false
 			
-	def update collection\string, id\string, patch\object, ecode = 'internal_db_error'
+	def update collection\string, id\string, patch\object, ecode = 'pocketbase-error'
 		try
 			return await pb.collection(collection).update(id, patch)
 		catch error
 			notify(ecode, error)
 			return false
 
-	def post route\string, query\object = {}, ecode = 'internal_db_error'
+	def post route\string, query\object = {}, ecode = 'pocketbase-error'
 		try
 			return await pb.send(route, {method: 'POST', body: query})
 		catch error
 			notify(ecode, error)
 			return false
 
-	def get route\string, query\object = {}, ecode = 'internal_db_error'
+	def get route\string, query\object = {}, ecode = 'pocketbase-error'
 		try
 			return await pb.send(route, {method: 'GET', query})
 		catch error
@@ -154,24 +154,24 @@ export class Pocketbase
 				return new RegExp(/^[^\s@]+@[^\s@]+\.[^\s@]+$/).test(email)
 			otp: do(email\string)
 				if !auth.verify(email)
-					notify('code_send_error')
+					notify('pocketbase-send-error')
 					return undefined
 				try
 					return await pb.collection('users').requestOTP(email)
 				catch error
-					notify('code_send_error', error)
+					notify('pocketbase-send-error', error)
 					return undefined
 			
 			login: do(otp, code)
 				if !otp..otpId or !code or code.length != options.otp
-					notify('code_wrong')
+					notify('pocketbase-code-wrong')
 					return undefined
 				try
 					await pb.collection('users').authWithOTP(otp..otpId, code)
 					onauth! if onauth isa Function
 					return true
 				catch error
-					notify('code_wrong', error)
+					notify('pocketbase-code-wrong', error)
 					return undefined
 			
 			logout: do
