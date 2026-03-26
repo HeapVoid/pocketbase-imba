@@ -91,18 +91,27 @@ export class Pocketbase
 	# ------------------------------------
 	get realtime
 		return
-			connect: do(onconnect\Function = undefined, ondisconnect\Function = undefined, retries = 0)
+			connect: do(onconnect\Function = undefined, ondisconnect\Function = undefined, retries = 0, grace = 0)
+				let disconnectTimeout = null
 				pb.realtime.unsubscribe 'PB_CONNECT'
 				pb.realtime.onDisconnect = undefined
 				try
-					await pb.realtime.subscribe 'PB_CONNECT', do(event) onconnect(event) if onconnect isa Function
-					pb.realtime.onDisconnect = do(event) 
+					await pb.realtime.subscribe 'PB_CONNECT', do(event)
+						clearTimeout(disconnectTimeout) if disconnectTimeout
+						disconnectTimeout = null
+						onconnect(event) if onconnect isa Function
+					pb.realtime.onDisconnect = do(event)
 						return if !(ondisconnect isa Function)
-						await timeout(10)
-						ondisconnect(event)
+						if grace > 0
+							disconnectTimeout = setTimeout(&, grace) do
+								disconnectTimeout = null
+								ondisconnect(event)
+						else
+							await timeout(10)
+							ondisconnect(event)
 				catch error
 					ondisconnect(error) if ondisconnect isa Function and !retries
-					setTimeout(&, 1000) do realtime.connect(onconnect, ondisconnect, retries + 1)
+					setTimeout(&, 1000) do realtime.connect(onconnect, ondisconnect, retries + 1, grace)
 					
 			watch: 
 				one: do(collection\string, record\string, callback\Function, onfail\Function = undefined)
