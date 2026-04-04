@@ -189,5 +189,9 @@ export class Pocketbase
 				
 			refresh: do
 				return if !user
-				try await pb.collection("users").authRefresh!
+				try
+					await pb.collection("users").authRefresh!
+				catch error
+					pb.authStore.clear!
+					onauth! if onauth isa Function
 			
