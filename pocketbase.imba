@@ -79,6 +79,13 @@ export class Pocketbase
 			notify(ecode, error)
 			return false
 
+	def patch route\string, query\object = {}, ecode = 'pocketbase-error'
+		try
+			return await pb.send(route, {method: 'PATCH', body: query})
+		catch error
+			notify(ecode, error)
+			return false
+
 	def get route\string, query\object = {}, ecode = 'pocketbase-error'
 		try
 			return await pb.send(route, {method: 'GET', query})
