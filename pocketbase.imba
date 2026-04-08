@@ -18,6 +18,8 @@ export class Pocketbase
 
 	def notify code, details = undefined
 		return if silent
+		# Ignore autocancelled requests — they are not real errors
+		return if details and (details.isAbort or details.status == 0 or details.name == 'AbortError')
 		if onerror isa Function and !silent
 			onerror(code, details)
 		else
