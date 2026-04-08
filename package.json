@@ -1,6 +1,6 @@
 {
   "name": "pocketbase-imba",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/HeapVoid/pocketbase-imba.git"
@@ -15,7 +15,7 @@
   "files": [
     "pocketbase.imba"
   ],
-  "dependencies": {
+  "peerDependencies": {
     "pocketbase": "latest"
   }
 }
