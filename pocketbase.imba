@@ -65,6 +65,13 @@ export class Pocketbase
 			notify(ecode, error)
 			return false
 			
+	def delete collection\string, id\string, ecode = 'pocketbase-error'
+		try
+			return await pb.collection(collection).delete(id)
+		catch error
+			notify(ecode, error)
+			return false
+
 	def update collection\string, id\string, patch\object, ecode = 'pocketbase-error'
 		try
 			return await pb.collection(collection).update(id, patch)
